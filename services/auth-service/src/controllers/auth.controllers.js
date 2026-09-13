@@ -59,6 +59,78 @@ async function createUser(req, res, next) {
   }
 }
 
+async function deleteUser(req, res, next) {
+  try {
+    const { id } = req.params;
+
+    const user = await User.findByPk(id);
+    if (!user) {
+      throw new AppError("Usuario no encontrado", 404); // Not Found
+    }
+
+    await user.destroy();
+
+    res.status(200).json({
+      status: "success",
+      message: "Ususario eliminado correctamente",
+    });
+  } catch (error) {
+    next(error);
+  }
+}
+
+async function updateUserStatus(req, res, next) {
+  try {
+    const { id } = req.params;
+    const { status } = req.body;
+
+    if (!["active", "inactive"].includes(status)) {
+      throw new AppError("status debe ser 'active' o 'inactive'", 400);
+    }
+
+    const user = await User.findByPk(id);
+    if (!user) {
+      throw new AppError("Usuario no encontrado", 404);
+    }
+
+    user.status = status;
+    user.updated_at = new Date();
+    await user.save();
+
+    res.status(200).json({
+      status: "success",
+      data: { id: user.id, status: user.status },
+    });
+  } catch (error) {
+    next(error);
+  }
+}
+
+async function getUsersStatusBatch(req, res, next) {
+  try {
+    const { ids } = req.body; // Array de UUIDs de usuarios
+
+    if (!Array.isArray(ids) || ids.length === 0) {
+      throw new AppError(
+        'Se requiere un array "ids" con al menos un elemento',
+        400,
+      );
+    }
+
+    const users = await User.findAll({
+      where: { id: ids },
+      attributes: ["id", "status"],
+    });
+
+    res.status(200).json({
+      status: "success",
+      data: users, // [{id, status}, ...]
+    });
+  } catch (error) {
+    next(error);
+  }
+}
+
 async function login(req, res, next) {
   try {
     const { email, password } = req.body;
@@ -67,7 +139,7 @@ async function login(req, res, next) {
       throw new AppError("email y password son requeridos", 400);
     }
 
-    const user = await User.findOne({ where: { email } });
+    const user = await User.findOne({ where: { email }, include: Role });
     if (!user) {
       throw new AppError("Credenciales inválidas", 401); // Unauthorized
     }
@@ -85,6 +157,7 @@ async function login(req, res, next) {
     const token = generateToken({
       id: user.id,
       role_id: user.role_id,
+      role_name: user.role.name,
     });
 
     // Registramos la sesion
@@ -109,6 +182,7 @@ async function login(req, res, next) {
         id: user.id,
         email: user.email,
         role_id: user.role_id,
+        role_name: user.role.name,
         expires_at: expiresAt,
       },
     });
@@ -122,7 +196,7 @@ async function logout(req, res, next) {
     const token = req.cookies.token;
 
     if (token) {
-      // Elimina la sesi[on de la base de datos (invalidación real)
+      // Elimina la sesion de la base de datos (invalidación real)
       await Session.destroy({ where: { token } });
     }
 
@@ -142,4 +216,11 @@ async function logout(req, res, next) {
   }
 }
 
-module.exports = { createUser, login, logout };
+module.exports = {
+  createUser,
+  deleteUser,
+  updateUserStatus,
+  getUsersStatusBatch,
+  login,
+  logout,
+};
