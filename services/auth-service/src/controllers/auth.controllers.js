@@ -216,6 +216,43 @@ async function logout(req, res, next) {
   }
 }
 
+async function validateSession(req, res, next) {
+  try {
+    const token = req.cookies.token;
+
+    if (!token) {
+      throw new AppError("No autenticado", 401);
+    }
+
+    let decoded;
+    try {
+      decoded = jwt.verify(token, process.env.JWT_SECRET);
+    } catch (error) {
+      throw new AppError("Token invalido o expirado", 401);
+    }
+
+    const session = await Session.findOne({ where: { token } });
+    if (!session) {
+      throw new AppError("Sesion no encontrada o ya cerrada", 401);
+    }
+
+    if (new Date(session.expires_at) < new Date()) {
+      throw new AppError("La sesion ha expirado", 401);
+    }
+
+    res.status(200).json({
+      status: "success",
+      data: {
+        id: decoded.id,
+        role_id: decoded.role_id,
+        role_name: decoded.role_name,
+      },
+    });
+  } catch (error) {
+    next(error);
+  }
+}
+
 module.exports = {
   createUser,
   deleteUser,
@@ -223,4 +260,5 @@ module.exports = {
   getUsersStatusBatch,
   login,
   logout,
+  validateSession,
 };

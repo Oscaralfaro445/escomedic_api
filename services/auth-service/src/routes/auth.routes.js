@@ -7,6 +7,7 @@ const {
   getUsersStatusBatch,
   login,
   logout,
+  validateSession,
 } = require("../controllers/auth.controllers");
 const authenticate = require("../middlewares/authenticate");
 const authorize = require("../middlewares/authorize");
@@ -32,5 +33,6 @@ router.post(
 );
 router.post("/login", login);
 router.post("/logout", logout);
+router.get("/validate-session", validateSession);
 
 module.exports = router;
