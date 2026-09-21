@@ -38,6 +38,17 @@ function setupProxyRoutes(app) {
       changeOrigin: true,
     }),
   );
+
+  app.use(
+    "/patients",
+    authenticate,
+    createProxyMiddleware({
+      target: `${process.env.PATIENT_SERVICE_URL}/patients`,
+      changeOrigin: true,
+    }),
+  );
 }
+
+// patient-service: todo require autenticacion
 
 module.exports = setupProxyRoutes;
