@@ -88,6 +88,32 @@ async function listEmployees(req, res, next) {
   }
 }
 
+async function checkEmployeeExists(req, res, next) {
+  try {
+    const { employeeId } = req.params;
+
+    const employee = await Employee.findByPk(employeeId, {
+      attributes: ["id", "name", "last_name_p"],
+    });
+
+    if (!employee) {
+      throw new AppError("Empleado no encontrado", 404);
+    }
+
+    res.status(200).json({
+      status: "success",
+      data: {
+        exists: true,
+        id: employee.id,
+        name: employee.name,
+        last_name_p: employee.last_name_p,
+      },
+    });
+  } catch (error) {
+    next(error);
+  }
+}
+
 async function getEmployeeById(req, res, next) {
   try {
     const { employeeId } = req.params;
@@ -184,6 +210,7 @@ async function getMyProfile(req, res, next) {
 module.exports = {
   createEmployee,
   listEmployees,
+  checkEmployeeExists,
   getEmployeeById,
   updateEmployee,
   updateEmployeeStatus,

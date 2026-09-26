@@ -47,6 +47,15 @@ function setupProxyRoutes(app) {
       changeOrigin: true,
     }),
   );
+
+  app.use(
+    "/medical-record",
+    authenticate,
+    createProxyMiddleware({
+      target: `${process.env.MEDICALRECORD_SERVICE_URL}/medical-record`,
+      changeOrigin: true,
+    }),
+  );
 }
 
 // patient-service: todo require autenticacion

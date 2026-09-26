@@ -4,7 +4,7 @@
   "version": "1.0.0",
   "description": "Service for managing patients",
   "private": true,
-  "main": "src/index.js",
+  "main": "src/server.js",
   "scripts": {
     "dev": "nodemon src/server.js",
     "start": "node src/server.js"
