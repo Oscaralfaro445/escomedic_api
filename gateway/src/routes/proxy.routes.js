@@ -56,6 +56,15 @@ function setupProxyRoutes(app) {
       changeOrigin: true,
     }),
   );
+
+  app.use(
+    "/ai",
+    authenticate,
+    createProxyMiddleware({
+      target: `${process.env.AI_SERVICE_URL}/ai`,
+      changeOrigin: true,
+    }),
+  );
 }
 
 // patient-service: todo require autenticacion
