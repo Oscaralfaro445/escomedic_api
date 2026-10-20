@@ -1,0 +1,177 @@
+name: escomedic
+
+x-node-healthcheck: &node-healthcheck
+  test:
+    - CMD
+    - node
+    - -e
+    - "fetch('http://127.0.0.1:'+process.env.PORT+'/health').then(r=>process.exit(r.ok?0:1)).catch(()=>process.exit(1))"
+  interval: 10s
+  timeout: 5s
+  retries: 5
+  start_period: 20s
+
+services:
+  escomedic_db:
+    image: postgres:16
+    container_name: escomedic_db
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?Falta POSTGRES_PASSWORD en .env}
+      AUTH_DB_PASSWORD: ${AUTH_DB_PASSWORD:?Falta AUTH_DB_PASSWORD en .env}
+      EMPLOYEE_DB_PASSWORD: ${EMPLOYEE_DB_PASSWORD:?Falta EMPLOYEE_DB_PASSWORD en .env}
+      PATIENT_DB_PASSWORD: ${PATIENT_DB_PASSWORD:?Falta PATIENT_DB_PASSWORD en .env}
+      MEDICALRECORD_DB_PASSWORD: ${MEDICALRECORD_DB_PASSWORD:?Falta MEDICALRECORD_DB_PASSWORD en .env}
+      AI_DB_PASSWORD: ${AI_DB_PASSWORD:?Falta AI_DB_PASSWORD en .env}
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+      - ./db/init:/docker-entrypoint-initdb.d:ro
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -h 127.0.0.1 -U postgres -d postgres"]
+      interval: 5s
+      timeout: 5s
+      retries: 12
+      start_period: 30s
+
+  auth-service:
+    build:
+      context: .
+      dockerfile: services/auth-service/Dockerfile
+    container_name: auth-service
+    restart: unless-stopped
+    depends_on:
+      escomedic_db:
+        condition: service_healthy
+    environment:
+      PORT: 4001
+      DB_HOST: escomedic_db
+      DB_PORT: 5432
+      DB_NAME: auth_db
+      DB_USER: auth_user
+      DB_PASSWORD: ${AUTH_DB_PASSWORD}
+      JWT_SECRET: ${JWT_SECRET:?Falta JWT_SECRET en .env}
+      JWT_EXPIRES_IN: ${JWT_EXPIRES_IN:-1h}
+      COOKIE_DOMAIN: ${COOKIE_DOMAIN:-localhost}
+      COOKIE_SECURE: ${COOKIE_SECURE:-false}
+      COOKIE_SAMESITE: ${COOKIE_SAMESITE:-lax}
+      CORS_ORIGIN: ${CORS_ORIGIN:?Falta CORS_ORIGIN en .env}
+      ADMIN_EMAIL: ${ADMIN_EMAIL:?Falta ADMIN_EMAIL en .env}
+      ADMIN_PASSWORD: ${ADMIN_PASSWORD:?Falta ADMIN_PASSWORD en .env}
+    healthcheck: *node-healthcheck
+
+  employee-service:
+    build:
+      context: .
+      dockerfile: services/employee-service/Dockerfile
+    container_name: employee-service
+    restart: unless-stopped
+    depends_on:
+      escomedic_db:
+        condition: service_healthy
+    environment:
+      PORT: 4002
+      DB_HOST: escomedic_db
+      DB_PORT: 5432
+      DB_NAME: employee_db
+      DB_USER: employee_user
+      DB_PASSWORD: ${EMPLOYEE_DB_PASSWORD}
+      CORS_ORIGIN: ${CORS_ORIGIN}
+      AUTH_SERVICE_URL: http://auth-service:4001
+    healthcheck: *node-healthcheck
+
+  patient-service:
+    build:
+      context: .
+      dockerfile: services/patient-service/Dockerfile
+    container_name: patient-service
+    restart: unless-stopped
+    depends_on:
+      escomedic_db:
+        condition: service_healthy
+    environment:
+      PORT: 4003
+      DB_HOST: escomedic_db
+      DB_PORT: 5432
+      DB_NAME: patient_db
+      DB_USER: patient_user
+      DB_PASSWORD: ${PATIENT_DB_PASSWORD}
+      CORS_ORIGIN: ${CORS_ORIGIN}
+    healthcheck: *node-healthcheck
+
+  medicalrecord-service:
+    build:
+      context: .
+      dockerfile: services/medicalrecord-service/Dockerfile
+    container_name: medicalrecord-service
+    restart: unless-stopped
+    depends_on:
+      escomedic_db:
+        condition: service_healthy
+    environment:
+      PORT: 4004
+      DB_HOST: escomedic_db
+      DB_PORT: 5432
+      DB_NAME: medicalrecord_db
+      DB_USER: medicalrecord_user
+      DB_PASSWORD: ${MEDICALRECORD_DB_PASSWORD}
+      CORS_ORIGIN: ${CORS_ORIGIN}
+      PATIENT_SERVICE_URL: http://patient-service:4003
+      EMPLOYEE_SERVICE_URL: http://employee-service:4002
+    healthcheck: *node-healthcheck
+
+  ai-service:
+    build:
+      context: .
+      dockerfile: services/ai-service/Dockerfile
+    container_name: ai-service
+    restart: unless-stopped
+    depends_on:
+      escomedic_db:
+        condition: service_healthy
+    environment:
+      PORT: 4005
+      DB_HOST: escomedic_db
+      DB_PORT: 5432
+      DB_NAME: ai_db
+      DB_USER: ai_user
+      DB_PASSWORD: ${AI_DB_PASSWORD}
+      CORS_ORIGIN: ${CORS_ORIGIN}
+      PATIENT_SERVICE_URL: http://patient-service:4003
+      EMPLOYEE_SERVICE_URL: http://employee-service:4002
+      MEDICALRECORD_SERVICE_URL: http://medicalrecord-service:4004
+      OPENAI_API_KEY: ${OPENAI_API_KEY:-}
+      OPENAI_MODEL: ${OPENAI_MODEL:-gpt-4o-mini}
+    healthcheck: *node-healthcheck
+
+  gateway:
+    build:
+      context: .
+      dockerfile: gateway/Dockerfile
+    container_name: gateway
+    restart: unless-stopped
+    depends_on:
+      auth-service:
+        condition: service_healthy
+      employee-service:
+        condition: service_healthy
+      patient-service:
+        condition: service_healthy
+      medicalrecord-service:
+        condition: service_healthy
+      ai-service:
+        condition: service_healthy
+    ports:
+      - "${GATEWAY_PORT:-3000}:3000"
+    environment:
+      PORT: 3000
+      CORS_ORIGIN: ${CORS_ORIGIN}
+      AUTH_SERVICE_URL: http://auth-service:4001
+      EMPLOYEE_SERVICE_URL: http://employee-service:4002
+      PATIENT_SERVICE_URL: http://patient-service:4003
+      MEDICALRECORD_SERVICE_URL: http://medicalrecord-service:4004
+      AI_SERVICE_URL: http://ai-service:4005
+    healthcheck: *node-healthcheck
+
+volumes:
+  pgdata:

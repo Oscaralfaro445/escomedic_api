@@ -2,6 +2,8 @@
 -- AI Service - Schema
 -- =========================================
 
+\c ai_db
+
 CREATE EXTENSION IF NOT EXISTS "pgcrypto";
 
 CREATE TABLE gpc_index (
@@ -67,11 +69,8 @@ CREATE INDEX idx_ai_request_log_consultation_id ON ai_request_log(consultation_i
 CREATE INDEX idx_gpc_cached_content_gpc_id ON gpc_cached_content(gpc_id);
 CREATE INDEX idx_gpc_condition_code_cie10_code ON gpc_condition_code(cie10_code);
 
-INSERT INTO gpc_index (cie10_code, condition_name, category, grr_url, ger_url, grr_file_id, ger_file_id)
-VALUES (
-  'J03.9',
-  'Amigdalitis aguda',
-  'Medicina Familiar',
-  'https://www.imss.gob.mx/sites/all/statics/guiasclinicas/062GRR.pdf',
-  'https://www.imss.gob.mx/sites/all/statics/guiasclinicas/062GER.pdf',
-);
+GRANT USAGE ON SCHEMA public TO ai_user;
+GRANT ALL PRIVILEGES ON ALL TABLES IN SCHEMA public TO ai_user;
+GRANT ALL PRIVILEGES ON ALL SEQUENCES IN SCHEMA public TO ai_user;
+ALTER DEFAULT PRIVILEGES IN SCHEMA public GRANT ALL PRIVILEGES ON TABLES TO ai_user;
+ALTER DEFAULT PRIVILEGES IN SCHEMA public GRANT ALL PRIVILEGES ON SEQUENCES TO ai_user;

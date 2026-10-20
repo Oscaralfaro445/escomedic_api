@@ -2,6 +2,8 @@
 -- Employee Service - Schema
 -- =========================================
 
+\c employee_db
+
 CREATE EXTENSION IF NOT EXISTS "pgcrypto";
 
 CREATE TABLE employee (
@@ -15,3 +17,9 @@ CREATE TABLE employee (
 );
 
 CREATE INDEX idx_employee_user_id ON employee(user_id);
+
+GRANT USAGE ON SCHEMA public TO employee_user;
+GRANT ALL PRIVILEGES ON ALL TABLES IN SCHEMA public TO employee_user;
+GRANT ALL PRIVILEGES ON ALL SEQUENCES IN SCHEMA public TO employee_user;
+ALTER DEFAULT PRIVILEGES IN SCHEMA public GRANT ALL PRIVILEGES ON TABLES TO employee_user;
+ALTER DEFAULT PRIVILEGES IN SCHEMA public GRANT ALL PRIVILEGES ON SEQUENCES TO employee_user;

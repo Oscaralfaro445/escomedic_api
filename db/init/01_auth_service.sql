@@ -2,6 +2,7 @@
 -- Auth Service - Schema
 -- =========================================
 
+\c auth_db
 
 -- Habilita la generación de UUIDs (gen_random_uuid) si no está ya disponible
 CREATE EXTENSION IF NOT EXISTS "pgcrypto";
@@ -12,6 +13,8 @@ CREATE TABLE role (
   id   UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   name VARCHAR(40) NOT NULL UNIQUE
 );
+
+INSERT INTO role (name) VALUES ('administrador'), ('doctor');
 
 ---------- Tabla: User ----------
 
@@ -51,3 +54,9 @@ CREATE TABLE password_reset_token (
 
 CREATE INDEX idx_sessio_user_id ON session(user_id);
 CREATE INDEX idx_password_reset_token_user_id ON password_reset_token(user_id);
+
+GRANT USAGE ON SCHEMA public TO auth_user;
+GRANT ALL PRIVILEGES ON ALL TABLES IN SCHEMA public TO auth_user;
+GRANT ALL PRIVILEGES ON ALL SEQUENCES IN SCHEMA public TO auth_user;
+ALTER DEFAULT PRIVILEGES IN SCHEMA public GRANT ALL PRIVILEGES ON TABLES TO auth_user;
+ALTER DEFAULT PRIVILEGES IN SCHEMA public GRANT ALL PRIVILEGES ON SEQUENCES TO auth_user;

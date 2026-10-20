@@ -2,6 +2,8 @@
 -- Medical Record Service - Schema
 -- =========================================
 
+\c medicalrecord_db
+
 CREATE EXTENSION IF NOT EXISTS "pgcrypto";
 
 CREATE TABLE medical_record (
@@ -53,3 +55,9 @@ CREATE TABLE consultation(
 
 CREATE INDEX idx_consultation_medical_record_id ON consultation(medical_record_id);
 CREATE INDEX idx_consultation_status_id ON consultation(status_id);
+
+GRANT USAGE ON SCHEMA public TO medicalrecord_user;
+GRANT ALL PRIVILEGES ON ALL TABLES IN SCHEMA public TO medicalrecord_user;
+GRANT ALL PRIVILEGES ON ALL SEQUENCES IN SCHEMA public TO medicalrecord_user;
+ALTER DEFAULT PRIVILEGES IN SCHEMA public GRANT ALL PRIVILEGES ON TABLES TO medicalrecord_user;
+ALTER DEFAULT PRIVILEGES IN SCHEMA public GRANT ALL PRIVILEGES ON SEQUENCES TO medicalrecord_user;

@@ -2,6 +2,8 @@
 -- Patient Service - Schema
 -- =========================================
 
+\c patient_db
+
 CREATE EXTENSION IF NOT EXISTS "pgcrypto";
 
 CREATE TABLE patient (
@@ -33,3 +35,9 @@ CREATE TABLE patient_contact (
 );
 
 CREATE INDEX idx_patient_contact_patient_id ON patient_contact(patient_id);
+
+GRANT USAGE ON SCHEMA public TO patient_user;
+GRANT ALL PRIVILEGES ON ALL TABLES IN SCHEMA public TO patient_user;
+GRANT ALL PRIVILEGES ON ALL SEQUENCES IN SCHEMA public TO patient_user;
+ALTER DEFAULT PRIVILEGES IN SCHEMA public GRANT ALL PRIVILEGES ON TABLES TO patient_user;
+ALTER DEFAULT PRIVILEGES IN SCHEMA public GRANT ALL PRIVILEGES ON SEQUENCES TO patient_user;
