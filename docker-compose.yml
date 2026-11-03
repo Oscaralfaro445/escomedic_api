@@ -162,7 +162,7 @@ services:
       ai-service:
         condition: service_healthy
     ports:
-      - "${GATEWAY_PORT:-3000}:3000"
+      - "127.0.0.1:${GATEWAY_PORT:-3000}:3000"
     environment:
       PORT: 3000
       CORS_ORIGIN: ${CORS_ORIGIN}
