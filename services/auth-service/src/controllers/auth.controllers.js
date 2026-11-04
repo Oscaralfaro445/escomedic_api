@@ -253,6 +253,21 @@ async function validateSession(req, res, next) {
   }
 }
 
+async function listRoles(req, res, next) {
+  try {
+    const roles = await Role.findAll({
+      attributes: ["id", "name"],
+      order: [["name", "ASC"]],
+    });
+    res.status(200).json({
+      status: "success",
+      data: roles,
+    });
+  } catch (error) {
+    next(error);
+  }
+}
+
 module.exports = {
   createUser,
   deleteUser,
@@ -261,4 +276,5 @@ module.exports = {
   login,
   logout,
   validateSession,
+  listRoles,
 };
