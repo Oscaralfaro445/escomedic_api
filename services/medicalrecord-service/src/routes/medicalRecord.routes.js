@@ -19,11 +19,14 @@ const {
   getConsultationById,
   createConsultation,
   updateConsultation,
+  listConsultationsByDate,
 } = require("../controllers/consultation.controller");
 
 router.use(authenticate);
 
 router.post("/", createMedicalRecord);
+
+router.get("/consultations", listConsultationsByDate);
 
 router.get(
   "/:patientId",

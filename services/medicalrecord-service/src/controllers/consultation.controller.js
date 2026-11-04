@@ -1,4 +1,8 @@
-const { Consultation, ConsultationStatus } = require("../models");
+const {
+  Consultation,
+  ConsultationStatus,
+  MedicalRecord,
+} = require("../models");
 const AppError = require("../utils/AppError");
 const {
   buildIdentityHeaders,
@@ -145,9 +149,42 @@ async function updateConsultation(req, res, next) {
   }
 }
 
+async function listConsultationsByDate(req, res, next) {
+  try {
+    const { date, employee_id } = req.query;
+    if (!date) throw new AppError("date es requerido (YYYY-MM-DD)", 400);
+
+    const where = { date };
+    if (employee_id) where.employee_id = employee_id;
+
+    const consultations = await Consultation.findAll({
+      where,
+      attributes: [
+        "id",
+        "date",
+        "time",
+        "reason",
+        "diagnosis",
+        "cie10_code",
+        "employee_id",
+      ],
+      include: [
+        { model: MedicalRecord, attributes: ["patient_id"] },
+        { model: ConsultationStatus, attributes: ["name"] },
+      ],
+      order: [["time", "ASC"]],
+    });
+
+    res.status(200).json({ status: "success", data: consultations });
+  } catch (error) {
+    next(error);
+  }
+}
+
 module.exports = {
   listConsultations,
   getConsultationById,
   createConsultation,
   updateConsultation,
+  listConsultationsByDate,
 };
