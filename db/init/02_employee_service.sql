@@ -11,7 +11,7 @@ CREATE TABLE employee (
   user_id     UUID NOT NULL UNIQUE, -- referencia logica
   name        VARCHAR(30) NOT NULL,
   last_name_p VARCHAR(30) NOT NULL,
-  last_name_m VARCHAR(30) NOT NULL,
+  last_name_m VARCHAR(30),
   phone       VARCHAR(15),
   created_at  TIMESTAMPTZ NOT NULL DEFAULT now()
 );

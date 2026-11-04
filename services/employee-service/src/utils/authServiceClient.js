@@ -28,7 +28,7 @@ async function updateAuthUserStatus(userId, status, cookieHeader) {
     {
       method: "PATCH",
       headers: {
-        "Conte  nt-Type": "application/json",
+        "Content-Type": "application/json",
         Cookie: cookieHeader,
       },
       body: JSON.stringify({ status }),

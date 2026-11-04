@@ -119,7 +119,8 @@ async function getUsersStatusBatch(req, res, next) {
 
     const users = await User.findAll({
       where: { id: ids },
-      attributes: ["id", "status"],
+      attributes: ["id", "status", "email"],
+      include: { model: Role, attributes: ["name"] },
     });
 
     res.status(200).json({
