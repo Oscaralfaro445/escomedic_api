@@ -70,14 +70,17 @@ async function listEmployees(req, res, next) {
     const userIds = employees.map((employee) => employee.user_id);
     const statuses = await getUsersStatusBatch(userIds, cookieHeader);
 
-    const statusMap = new Map(
-      statuses.map((status) => [status.id, status.status]),
-    );
+    const accountMap = new Map(statuses.map((user) => [user.id, user]));
 
-    const enriched = employees.map((employee) => ({
-      ...employee.toJSON(),
-      status: statusMap.get(employee.user_id) || "unknown",
-    }));
+    const enriched = employees.map((employee) => {
+      const account = accountMap.get(employee.user_id);
+      return {
+        ...employee.toJSON(),
+        status: account?.status || "unknown",
+        email: account?.email || null,
+        role_name: account?.role_name || null,
+      };
+    });
 
     res.status(200).json({
       status: "success",
@@ -124,14 +127,19 @@ async function getEmployeeById(req, res, next) {
       throw new AppError("Empleado no encontrado", 404);
     }
 
-    const [userStatus] = await getUsersStatusBatch(
+    const [account] = await getUsersStatusBatch(
       [employee.user_id],
       cookieHeader,
     );
 
     res.status(200).json({
       status: "success",
-      data: { ...employee.toJSON(), status: userStatus?.status || "unknown" },
+      data: {
+        ...employee.toJSON(),
+        status: account?.status || "unknown",
+        email: account?.email || null,
+        role_name: account?.role_name || null,
+      },
     });
   } catch (error) {
     next(error);

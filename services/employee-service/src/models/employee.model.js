@@ -22,7 +22,7 @@ const Employee = sequelize.define("employee", {
   },
   last_name_m: {
     type: DataTypes.STRING(30),
-    allowNull: false,
+    allowNull: true,
   },
   phone: {
     type: DataTypes.STRING(15),
