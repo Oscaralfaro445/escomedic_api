@@ -78,7 +78,7 @@ async function listEmployees(req, res, next) {
         ...employee.toJSON(),
         status: account?.status || "unknown",
         email: account?.email || null,
-        role_name: account?.role_name || null,
+        role_name: account?.role?.name || null,
       };
     });
 
@@ -138,7 +138,7 @@ async function getEmployeeById(req, res, next) {
         ...employee.toJSON(),
         status: account?.status || "unknown",
         email: account?.email || null,
-        role_name: account?.role_name || null,
+        role_name: account?.role?.name || null,
       },
     });
   } catch (error) {
