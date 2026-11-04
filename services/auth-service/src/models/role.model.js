@@ -9,7 +9,7 @@ const Role = sequelize.define("role", {
   },
   name: {
     type: DataTypes.STRING(40),
-    alluowNull: false,
+    allowNull: false,
     unique: true,
   },
 });
