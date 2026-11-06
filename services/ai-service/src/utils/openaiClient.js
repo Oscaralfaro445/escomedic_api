@@ -46,7 +46,7 @@ async function callOpenAI({ messages, maxOutputTokens, fileId }) {
 
   return {
     text: outputText,
-    tokensInput: data.usage?.ipunt_tokens,
+    tokensInput: data.usage?.input_tokens,
     tokensOutput: data.usage?.output_tokens,
     model: data.model,
   };

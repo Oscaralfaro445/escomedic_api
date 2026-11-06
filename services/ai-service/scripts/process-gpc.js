@@ -36,7 +36,7 @@ async function uploadToOpenAI(pdfBuffer, filename) {
     new Blob([pdfBuffer], { type: "application/pdf" }),
     filename,
   );
-  form.append("purpose", "user_date");
+  form.append("purpose", "user_data");
 
   const response = await fetch("https://api.openai.com/v1/files", {
     method: "POST",
@@ -142,7 +142,7 @@ async function main() {
     where: { gpc_code: gpcCode },
   });
   if (!gpc) {
-    console.error(`No se encontró GPC con cie10_code=${gpcCode}`);
+    console.error(`No se encontró GPC con gpc_code=${gpcCode}`);
     process.exit(1);
   }
 
@@ -166,7 +166,7 @@ async function main() {
       gpc.grr_file_id,
     );
 
-    gpc.ger_file__id = gerFileId;
+    gpc.ger_file_id = gerFileId;
     gpc.grr_file_id = grrFileId;
     gpc.last_processed = new Date();
     await gpc.save();
