@@ -44,6 +44,7 @@ const GpcIndex = sequelize.define("gpc_index", {
   last_processed: {
     type: DataTypes.DATE,
     allowNull: true,
+    defaultValue: DataTypes.NOW,
   },
   created_at: {
     type: DataTypes.DATE,

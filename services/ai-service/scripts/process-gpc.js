@@ -1,4 +1,5 @@
 require("dotenv").config();
+const pdfParse = require("pdf-parse");
 const sequelize = require("../src/config/db");
 const { GpcIndex, GpcCachedContent } = require("../src/models");
 
@@ -29,7 +30,7 @@ async function downloadPdf(url) {
   return Buffer.from(arrayBuffer);
 }
 
-async function uploadToOpenAI(pdfBuffer, filename) {
+/* async function uploadToOpenAI(pdfBuffer, filename) {
   const form = new FormData();
   form.append(
     "file",
@@ -49,9 +50,14 @@ async function uploadToOpenAI(pdfBuffer, filename) {
 
   const data = await response.json();
   return data.id;
+} */
+
+async function extractText(pdfBuffer) {
+  const { text, numpages } = await pdfParse(pdfBuffer);
+  return { text: text.replace(/\n{3,}/g, "\n\n").trim(), pages: numpages };
 }
 
-async function synthesize(fileId) {
+async function synthesize(guideText) {
   const response = await fetch("https://api.openai.com/v1/responses", {
     method: "POST",
     headers: {
@@ -59,24 +65,14 @@ async function synthesize(fileId) {
       Authorization: `Bearer ${process.env.OPENAI_API_KEY}`,
     },
     body: JSON.stringify({
-      model: process.env.OPENAI_MODEL || "gpt-4o-mini",
+      model: process.env.OPENAI_MODEL || "gpt-4.1-mini",
       input: [
         { role: "system", content: SYNTHESIS_SYSTEM_PROMPT },
         {
           role: "user",
-          content: [
-            {
-              type: "input_text",
-              text: "Sintetiza esta Guía de Práctica Clínica según el formato indicado.",
-            },
-            {
-              type: "input_file",
-              file_id: fileId,
-            },
-          ],
+          content: `Sintetiza esta Guía de Práctica Clínica según el formato indicado.\n\n[TEXTO DE LA GUÍA]\n${guideText}`,
         },
       ],
-      //max_output_tokens: 2000,
     }),
   });
 
@@ -91,89 +87,91 @@ async function synthesize(fileId) {
       .map((content) => content.text)
       .join("") || "";
 
-  return {
-    json: JSON.parse(outputText.trim()),
-    tokenUsed: data.usage?.total_tokens,
-  };
+  // El modelo a veces envuelve el JSON en un bloque markdown
+  const cleaned = outputText
+    .trim()
+    .replace(/^```(?:json)?\s*/i, "")
+    .replace(/```\s*$/i, "")
+    .trim();
+
+  return { json: JSON.parse(cleaned), tokenUsed: data.usage?.total_tokens };
 }
 
-async function processOneSource(gpc, sourceType, url, existingFileId) {
+async function processOneSource(gpc, sourceType, url) {
   console.log(`\n[${sourceType}] Procesando ${gpc.gpc_code}...`);
 
-  let fileId = existingFileId;
-  if (!fileId) {
-    const pdfBuffer = await downloadPdf(url);
-    fileId = await uploadToOpenAI(
-      pdfBuffer,
-      `${gpc.gpc_code}_${sourceType}.pdf`,
-    );
-    console.log(`Subido a OpenAI, file_id: ${fileId}`);
-  } else {
-    console.log(`Usando file_id existente: ${fileId}`);
-  }
+  const pdfBuffer = await downloadPdf(url);
+  const { text, pages } = await extractText(pdfBuffer);
+  const estTokens = Math.round(text.length / 3.5);
+  console.log(
+    `PDF de ${pages} páginas, ~${estTokens} tokens estimados (aproximado)`,
+  );
 
-  const { json, tokenUsed } = await synthesize(fileId);
+  if (text.length < 2000)
+    throw new Error("El PDF casi no tiene texto (¿es un escaneo?)");
+  if (estTokens > 900000)
+    throw new Error(
+      "El texto de la guía excede lo que cabe en una sola llamada",
+    );
+  if (sourceType === "GRR" && text.length > 80000)
+    console.warn(
+      "AVISO: la GRR es extensa; su texto se enviará completo en cada sugerencia",
+    );
+
+  const { json, tokenUsed } = await synthesize(text);
   console.log(`Síntesis generada (${tokenUsed} tokens)`);
+
+  // De la GRR se conserva además el texto original, que se envía íntegro al modelo
+  const content =
+    sourceType === "GRR" ? { ...json, texto_completo: text } : json;
 
   await GpcCachedContent.upsert(
     {
       gpc_id: gpc.id,
       source_type: sourceType,
-      content_json: json,
+      content_json: content,
       is_stale: false,
       tokens_used: tokenUsed,
       processed_at: new Date(),
     },
     { conflictFields: ["gpc_id", "source_type"] },
   );
-
-  return fileId;
 }
 
 async function main() {
   const gpcCode = process.argv[2];
-  if (!gpcCode) {
-    console.error("Uso: node scripts/process-gpc.js <gpc_code>");
-    console.error("Ejemplo: node scripts/process-gpc.js 062");
+  const only = (process.argv[3] || "").toUpperCase(); // opcional: GER o GRR
+
+  if (!gpcCode || (only && !["GER", "GRR"].includes(only))) {
+    console.error("Uso: node scripts/process-gpc.js <gpc_code> [GER|GRR]");
     process.exit(1);
   }
 
-  const gpc = await GpcIndex.findOne({
-    where: { gpc_code: gpcCode },
-  });
+  const gpc = await GpcIndex.findOne({ where: { gpc_code: gpcCode } });
   if (!gpc) {
     console.error(`No se encontró GPC con gpc_code=${gpcCode}`);
     process.exit(1);
   }
 
+  const doGer = !only || only === "GER";
+  const doGrr = !only || only === "GRR";
+
   try {
-    const gerFileId = await processOneSource(
-      gpc,
-      "GER",
-      gpc.ger_url,
-      gpc.ger_file_id,
-    );
+    if (doGer) await processOneSource(gpc, "GER", gpc.ger_url);
+    if (doGer && doGrr) {
+      console.log(
+        "\nEsperando 30s antes de procesar la GRR (límite de tokens por minuto)...",
+      );
+      await sleep(30000);
+    }
+    if (doGrr) await processOneSource(gpc, "GRR", gpc.grr_url);
 
-    console.log(
-      "\nEsperando 30s antes de procesar la GRR (límite de tokens por minuto de OpenAI)...",
-    );
-    await sleep(30000);
-
-    const grrFileId = await processOneSource(
-      gpc,
-      "GRR",
-      gpc.grr_url,
-      gpc.grr_file_id,
-    );
-
-    gpc.ger_file_id = gerFileId;
-    gpc.grr_file_id = grrFileId;
     gpc.last_processed = new Date();
     await gpc.save();
-
-    console.log("\n GPC procesada y cacheado correctamente.");
+    console.log("\nGPC procesada y cacheada correctamente.");
   } catch (error) {
     console.error("\nError:", error.message);
+    process.exitCode = 1;
   } finally {
     await sequelize.close();
   }
